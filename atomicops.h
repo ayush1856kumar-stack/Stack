@@ -8,10 +8,10 @@
 #include <cerrno>
 #include <cassert>
 #include <type_traits>
-#include <cerrno>
 #include <cstdint>
 #include <ctime>
-
+#include<atomic>    
+#include <utility>
 namespace stone
 {
     template <typename T>
@@ -25,7 +25,7 @@ namespace stone
         weak_atomic(weak_atomic &&other) : value(std::move(other.load())) {}
         operator T()
         {
-            load();
+            return load();
         }
         template <typename U>
         weak_atomic const &operator=(U &&x)
@@ -42,7 +42,13 @@ namespace stone
 
         // to avoid reordering but the stale value might not be a problem as this is only 
         // being used in loop.
-        load(){ return value.load(std::memory_order_relaxed);}
+        T load() const { return value.load(std::memory_order_relaxed); }
+        T load(std::memory_order order) const { return value.load(order); }
+
+        void store(T val, std::memory_order order = std::memory_order_relaxed)
+        {
+            value.store(val, order);
+        }
 
         // this telll cpu to first push all array content in stack then only incremnet this var 
         // basiclally flushing the STORE BUFFER.
@@ -53,9 +59,9 @@ namespace stone
 
         // similar to this first finish all LOAD BUFFER then only update this value.
         T fetch_add_release(T increment)
-     	{
-		return value.fetch_add(increment, std::memory_order_release);
-    	}
+        {
+            return value.fetch_add(increment, std::memory_order_release);
+        }
 
     private:
         std::atomic<T> value;
